@@ -2,7 +2,12 @@ from random import randrange
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 
-MAX_GROUP_SIZE = 2
+# the number of tokens to use when looking backwards
+GROUP_SIZE          = 2
+# minimum number of tokens to use in output
+MIN_OUTPUT_LENGTH   = 15
+# number of phrases to generate and output
+NUM_TO_GEN          = 100_000
 
 
 @dataclass
@@ -30,7 +35,7 @@ def parse_groups(tokens: List[str]) -> None:
         )
 
         # increment
-        if end >= MAX_GROUP_SIZE:
+        if end >= GROUP_SIZE:
             start += 1
 
     for g in groups:
@@ -45,25 +50,28 @@ def sanitize(raw: str) -> str:
     return raw.lower().replace("\n", "").replace('"', "")
 
 
-file = open("pics-10k.txt", "r")
+file = open("messages.txt", "r")
 lines = file.readlines()
-lines = [sanitize(s) for s in lines]
+lines = set([sanitize(s) for s in lines])
 
 connections: Dict[str, List[str]] = {}
 start_tokens: List[str] = []
 for i in lines:
     parse_groups(parse_tokens(i))
 
-# print(connections)
-# print(start_tokens)
 
-for i in range(0, 1000):
+output: Set[str] = set()
+while len(output) < NUM_TO_GEN:
     next_token = start_tokens[randrange(0, len(start_tokens))]
     buff = []
     while next_token is not None:
         buff.append(next_token)
-        prev_group = buff[-MAX_GROUP_SIZE:]
+        prev_group = buff[-GROUP_SIZE:]
         next_connections = connections[" ".join(prev_group)]
         next_token = next_connections[randrange(0, len(next_connections))]
 
-    print(" ".join(buff))
+    if len(buff) > MIN_OUTPUT_LENGTH:
+        generated = " ".join(buff)
+        if generated not in lines and generated not in output:
+            output.add(generated)
+            print(generated)
